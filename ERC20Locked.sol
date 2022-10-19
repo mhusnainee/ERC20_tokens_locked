@@ -9,19 +9,26 @@ contract MyToken is ERC20, Ownable {
 
     constructor() ERC20("MyToken", "MTK") {}
 
-    mapping(address => uint) private depositTimes;
-    mapping(address => uint) private mintedTokens;
-
-    function mint(uint256 amount) public {
-
-        _mint(msg.sender, amount - (amount*3/10));
-        depositTimes[msg.sender] = block.timestamp;
-        mintedTokens[msg.sender] = amount;
+    struct Users {
+        uint TimeStamp;
+        uint LockedTokens;
     }
 
-    function claim() public{
-        require(block.timestamp - depositTimes[msg.sender] >= 10, "Can't claim before 10 minutes");
-        _mint(msg.sender, mintedTokens[msg.sender]*3/10);
+    mapping(address => mapping(uint => Users)) public UserData;
+    mapping(address => uint) public TransactionIds;
+
+    function mint(uint256 amount) public {
+        TransactionIds[msg.sender] += 1;
+        _mint(msg.sender, amount*7/10);
+        _mint(owner(), amount*3/10);
+        UserData[msg.sender][TransactionIds[msg.sender]] = Users(block.timestamp, amount*3/10);
+    }
+
+    function releaseLockedTokens(address _user, uint _txId) public onlyOwner{
+        require(UserData[_user][_txId].LockedTokens != 0, "Tokens already released");
+        require(block.timestamp - UserData[_user][_txId].TimeStamp > 600, "Can't release before 10 minutes");
+        transfer(_user, UserData[_user][_txId].LockedTokens);
+        UserData[_user][_txId].LockedTokens = 0;
     }
 
 }
